@@ -1,0 +1,71 @@
+# PyPi distribution release workflow — triggers on version tag push (v*).
+#
+# Builds and publishes the distribution to PyPI on version tags using OIDC 
+# trusted publishing — no API tokens required.
+#
+# Expected structure:
+#   pyproject.toml        — project metadata and build configuration
+#   dist/                 — build output (gitignored)
+#
+# Deployed to: https://pypi.org/project/@@PYPI_PACKAGE@@/
+#
+# Prerequisites:
+#   - PyPI Trusted Publisher configured at https://pypi.org/manage/project/@@PYPI_PACKAGE@@/settings/publishing/
+#     with environment name: pypi
+#   - "pypi" environment created in repository settings (enables deployment protection rules)
+
+name: Release PyPi Distribution
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dist
+  cancel-in-progress: false # prevent mid-flight deployment leaving release in a broken state
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/project/@@PYPI_PACKAGE@@/
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Deploy to PyPi
+        uses: pypa/gh-action-pypi-publish@release/v1

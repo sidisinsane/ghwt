@@ -1,0 +1,58 @@
+# Python CI workflow — runs on every push to main and on every pull request
+# targeting main, including automated Dependabot PRs.
+#
+# Validates that the codebase lints cleanly and tests pass.
+# The full build is intentionally left to the release workflow.
+#
+# Expected structure:
+#   pyproject.toml        — project metadata and dependencies
+#   Makefile              — must define 'lint' and 'test' targets (see below)
+#   uv.lock               — lockfile
+#
+# Makefile targets required:
+#   lint                  — runs ruff format --check, ruff check, bandit, yamllint, rumdl
+#   test                  — runs pytest
+#
+# Prerequisites:
+#   - Python version read from pyproject.toml (requires-python) or .python-version
+
+name: Python CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci
+  cancel-in-progress: true  # newer push supersedes in-progress CI on the same branch
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dev dependencies
+        run: uv sync --dev
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test

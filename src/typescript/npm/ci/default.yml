@@ -1,0 +1,49 @@
+# Typescript CI workflow — runs on every push to main and on every pull request
+# targeting main, including automated Dependabot PRs.
+#
+# Validates that the codebase lints cleanly and compiles without errors.
+# The full build is intentionally left to the release workflow.
+#
+# Prerequisites:
+#   - Node.js >= @@NODE_VERSION@@ (default: 22)
+
+name: Typescript CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci
+  cancel-in-progress: true # newer push supersedes in-progress CI on the same branch
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: @@NODE_VERSION@@
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Compile
+        run: npm run compile:ts

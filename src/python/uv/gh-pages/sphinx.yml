@@ -1,0 +1,76 @@
+# Sphinx Docs workflow — runs on every push to main.
+#
+# Builds the Sphinx documentation site and deploys it to
+# GitHub Pages.
+#
+# Expected structure:
+#   pyproject.toml        — must declare sphinx (and extensions) as dev dependencies
+#   docs/                 — Sphinx source directory (contains conf.py)
+#   docs/_build/html/     — build output (gitignored)
+#
+# Python version is read from pyproject.toml (requires-python) or .python-version.
+#
+# Deployed to: https://@@GITHUB_USER@@.github.io/@@GITHUB_REPO@@
+#
+# Dependencies: 
+#   - uv sync --dev installs all dev dependencies. If your project
+#     uses dependency groups, replace with: uv sync --group <group>
+#
+# Prerequisites:
+#   - GitHub Pages must be enabled in repository settings with
+#     source set to "GitHub Actions"
+
+name: Publish Sphinx Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false  # prevent mid-flight deployment leaving pages in a broken state
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dev dependencies
+        run: uv sync --dev
+
+      - name: Build docs
+        run: uv run sphinx-build -b html docs docs/_build/html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
