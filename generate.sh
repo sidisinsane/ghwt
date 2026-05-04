@@ -50,15 +50,21 @@ if [ -t 2 ]; then
 else
     BOLD='' GREEN='' YELLOW='' RED='' RESET=''
 fi
-TEMPLATES_DIR="$(cd "$(dirname "$0")" && pwd)/src"
+# Resolve symlink to find the actual script location — portable, macOS compatible
+SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+while [ -L "$SCRIPT" ]; do
+    SCRIPT="$(readlink "$SCRIPT")"
+    [ "${SCRIPT#/}" = "$SCRIPT" ] && SCRIPT="$(cd "$(dirname "$0")" && pwd)/$SCRIPT"
+done
+TEMPLATES_DIR="$(cd "$(dirname "$SCRIPT")" && pwd)/src"
 
-[ ! -d "$TEMPLATES_DIR" ] && echo "Error: src/ directory not found in $(dirname "$0")" >&2 && exit 1
+[ ! -d "$TEMPLATES_DIR" ] && printf "${RED}Error: src/ directory not found in %s${RESET}\n" "$(dirname "$SCRIPT")" >&2 && exit 1
 
 GITHUB_DIR=".github"
 GITHUB_WORKFLOWS_DIR="$GITHUB_DIR/workflows"
 
 # Run installer if bin/ghwt symlink does not exist yet
-. "$(dirname "$0")/install.sh"
+. "$(dirname "$SCRIPT")/install.sh"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -340,13 +346,11 @@ placeholder_vals=("$selected_pm")
 if [ ${#placeholders[@]} -gt 0 ]; then
     echo "" >&2
     printf "${BOLD}Step 4 — Project settings${RESET}\n" >&2
+    # Seed known defaults into config if not already set
+    _existing_node=""
+    config_get "NODE_VERSION" _existing_node
+    [ -z "$_existing_node" ] && config_set "NODE_VERSION" "22"
     for ph in "${placeholders[@]}"; do
-        # Seed NODE_VERSION default if not already set
-        if [ "${ph//@@/}" = "NODE_VERSION" ]; then
-            _existing_node=""
-            config_get "NODE_VERSION" _existing_node
-            [ -z "$_existing_node" ] && config_set "NODE_VERSION" "22"
-        fi
         key="${ph//@@/}"
         # Derive human-readable label: strip @@, lowercase, replace _ with space
         label=$(printf '%s' "$key" | tr '[:upper:]_' '[:lower:] ')
