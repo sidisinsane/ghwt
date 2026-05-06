@@ -55,3 +55,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Ensure brand new public repositories can be resolved immediately
+          GOPROXY: "https://proxy.golang.org,direct"
