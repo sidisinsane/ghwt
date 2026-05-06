@@ -350,6 +350,9 @@ if [ ${#placeholders[@]} -gt 0 ]; then
     _existing_node=""
     config_get "NODE_VERSION" _existing_node
     [ -z "$_existing_node" ] && config_set "NODE_VERSION" "22"
+    _existing_go=""
+    config_get "GO_VERSION" _existing_go
+    [ -z "$_existing_go" ] && config_set "GO_VERSION" "1.26.2"
     for ph in "${placeholders[@]}"; do
         key="${ph//@@/}"
         # Derive human-readable label: strip @@, lowercase, replace _ with space
